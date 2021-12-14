@@ -1,0 +1,23 @@
+{#
+/**
+ * @file
+ * Two column template for the Uclass Registration form.
+ *
+ * Available variables:
+ * - form: The form.
+ *
+ */
+#}
+<div class="layout-registration-form clearfix">
+  <div class="layout-region layout-region-registration-main">
+    {{ form|without('student_information', 'actions') }}
+  </div>
+  <div class="layout-region layout-region-registration-secondary">
+    {{ form.student_information }}
+  </div>
+  <div class="layout-region layout-region-registration-footer">
+    <div class="layout-region-registration-footer__content">
+      {{ form.actions }}
+    </div>
+  </div>
+</div>

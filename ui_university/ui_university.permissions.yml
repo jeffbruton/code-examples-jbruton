@@ -1,0 +1,14 @@
+'delete uiu_class entity':
+  title: Delete Class content
+  
+'add uiu_class entity':
+  title: Add Class content
+  
+'view uiu_class entity':
+  title: View Class content
+  
+'edit uiu_class entity':
+  title: Edit Class content
+  
+'administer uiu_class entity':
+  title: Administer Class settings

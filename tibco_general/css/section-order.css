@@ -1,0 +1,16 @@
+.field--name-field-section-order .button.control-select,
+.field--name-field-section-order .button.control-select:hover {
+  background-image: url("/modules/contrib/ordered_list/libraries/ordered_list/images/chevron-right.svg");
+}
+.field--name-field-section-order .button.control-deselect,
+.field--name-field-section-order .button.control-deselect:hover {
+  background-image: url("/modules/contrib/ordered_list/libraries/ordered_list/images/chevron-left.svg");
+}
+
+.field--name-field-section-order .controls-order a {
+  text-indent: 0px;
+}
+
+.field--name-field-section-order .ordered-list ul {
+  height: auto;
+}

@@ -1,0 +1,262 @@
+<?php
+
+/**
+ * @file
+ * Module file for CCA Gated Resource.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Messenger\Messenger;
+use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\Core\Routing\UrlGeneratorTrait;
+
+/**
+ * Implements hook_entity_view_mode_alter().
+ */
+function cca_gated_resource_entity_view_mode_alter(&$view_mode, EntityInterface $entity, $context) {
+  $gated_bundles = [
+    'gated_resource',
+  ];
+
+  // Control view mode of the gated resource
+  if ($entity->getEntityTypeId() == 'node' && in_array($entity->bundle(), $gated_bundles) && $view_mode == 'full') {
+    
+    if(_cca_resource_is_gated($entity)) {
+      $view_mode = 'gated';
+    }
+  }
+}
+
+
+function _cca_resource_is_gated(EntityInterface $entity) {
+  $cookie_name = 'cca_gated_request_'. $entity->id();
+  
+  if (isset($_COOKIE[$cookie_name])) {
+    // cookie value = uuid of webform_submission
+    $gated_request = $_COOKIE[$cookie_name];
+    
+    // standard db query with connection for anonymous users
+    $con = \Drupal\Core\Database\Database::getConnection();
+    $query = $con->select('webform_submission', 's');
+    $query->fields('s', array('uuid', 'sid'));
+    $query->condition('s.uuid', $gated_request, '=');
+    $result = $query->distinct()->execute();
+    
+    foreach ($result as $sub) {
+      $submission = \Drupal\webform\Entity\WebformSubmission::load($sub->sid);
+      $submission_status = $submission->getData()['status'];
+      
+      if ($submission_status == 'approved') {
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+ * Implements hook_form_alter()
+ */
+function cca_gated_resource_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  
+  if (isset($form['#webform_id']) && $form['#webform_id'] == 'basic_gated_resource_form') {
+    
+    // determine if 'add' form or 'edit' form, from form_id
+    $form_id_array = explode('_',$form_id);
+    $form_id_count = count($form_id_array) - 2;
+    $form_id_route = $form_id_array[$form_id_count];
+    
+    // ADD webform_submission form
+    if ($form_id_route == 'add') {
+      // hide Status field from Add form
+      $form['elements']['status']['#access'] = FALSE;
+      
+      // Add custom submit handler
+      foreach (array_keys($form['actions']) as $action) {
+        if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
+          $form['actions'][$action]['#submit'][] = 'cca_gated_resource_form_submit';
+        }
+      }
+    }
+    
+    // EDIT webform_submission form
+    if ($form_id_route == 'edit') {
+      if ($action = \Drupal::request()->query->get('action')) {
+        // get webform_submission entity, values from edit form
+        $form_object = $form_state->getFormObject();
+        $webform_submission = $form_object->getEntity();
+        $data = $webform_submission->getData();
+        
+        if ($action == 'deny') {
+          if ($data['status'] != 'denied') {
+            $data['status'] = 'denied';
+            $webform_submission->setData($data);
+            $webform_submission->save();
+            
+            \Drupal::logger('cca_gated_resource')->notice('Access Denied - no email sent.');
+              
+            // force redirect to recent logs
+            $redirectURL = 'admin/reports/dblog';
+            $response = new RedirectResponse(base_path().$redirectURL);
+            $response->send();
+          }
+        }
+        
+        if ($action == 'approve') {
+          if ($data['status'] != 'approved') {
+            // get gated_resource node id and path
+            $source = $webform_submission->getSourceEntity();
+            $source_title = $source->getTitle();
+            $source_nid = $source->id();
+            $source_path = \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $source_nid);
+            
+            // update Status value, set new values on entity, save changes
+            $data['status'] = 'approved';
+            $webform_submission->setData($data);
+            $webform_submission->save();
+            
+            // force redirect to recent logs
+            $redirectURL = 'admin/reports/dblog';
+            $response = new RedirectResponse(base_path().$redirectURL);
+            $response->send();
+            
+            // values for email to person granted access
+            $host = \Drupal::request()->getSchemeAndHttpHost();
+            $link_path = $host . $source_path;
+            
+            $name = $data['name'];
+            $first = $name['first'];
+            $last = $name['last'];
+            
+            
+            // craft access granted email message
+            $body = '<p>Hello '. $first .' '. $last .',<br>';
+            $body .= 'You have been granted access to - <a href="'. $link_path .'">'. $source_title .'</a></p>';
+            $body .= '<p>Click on the link above, or copy and paste the following into your browser:<br>';
+            $body .= $link_path .'</p>';
+
+            // Parameters passed to Drupal Mail Function
+            $params['message'] = $body;
+            $to = $data['email_address'];
+            
+            $mailManager = \Drupal::service('plugin.manager.mail');
+            $module = 'cca_gated_resource';
+            $key = 'gated_response';
+            $langcode = \Drupal::currentUser()->getPreferredLangcode();
+            $send = true;
+            $reply = \Drupal::config('system.site')->get('mail');
+            
+            $result = $mailManager->mail($module, $key, $to, $langcode, $params, $reply, $send);
+  
+            if ($result['result'] !== true) {
+              \Drupal::messenger()->addError('There was a problem sending your message and it was not sent.');
+            } 
+            else {
+              \Drupal::messenger()->addStatus('Access Granted and follow-up email sent', 'status');
+              \Drupal::logger('cca_gated_resource')->notice('Access Granted Email sent: <pre><code>' . print_r($result, TRUE) . '</code></pre>');
+              
+              // force redirect to recent logs
+              $redirectURL = 'admin/reports/dblog';
+              $response = new RedirectResponse(base_path().$redirectURL);
+              $response->send();
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ * Custom webform submit handler
+ */
+function cca_gated_resource_form_submit($form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  \Drupal::logger('cca_gated_resource')->notice('CCA Custom form submit.');
+  
+  // get submission entity from form_state
+  $form_object = $form_state->getFormObject();
+  $webform_submission = $form_object->getEntity();
+  $submission_uuid = $webform_submission->get('uuid')->value;
+  
+  // get submission values for admin email
+  $webform_id = $webform_submission->get('webform_id')->value;
+  $sid = $webform_submission->get('sid')->value;
+  $name = $webform_submission->getData()['name'];
+  $first = $name['first'];
+  $last = $name['last'];
+  $email = $webform_submission->getData()['email_address'];
+  $host = \Drupal::request()->getSchemeAndHttpHost();
+  $edit_path = $host .'/admin/structure/webform/manage/basic_gated_resource_form/submission/'. $sid .'/edit';
+  
+  // get gated_resource node id and path
+  $source = $webform_submission->getSourceEntity();
+  $source_title = $source->getTitle();
+  $source_nid = $source->id();
+  $source_path = \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $source_nid);
+  
+  $cookie_duration = \Drupal::time()->getRequestTime() + (60 * 60 * 24 * 7);     // one week
+  
+  // set cookie with nid, uuid of submission, and path
+  setcookie("cca_gated_request_{$source_nid}", $submission_uuid, $cookie_duration, $source_path);
+  
+  
+  // craft admin email message
+  $body = '<p><strong>New Request to Gated Resource</strong></p>';
+  $body .= '<p>Content: '. $source_title .'</p>';
+  $body .= '<p>Requested by: '. $first .' '. $last .'<br>';
+  $body .= 'Email: '. $email .'</p>';
+  $body .= '<p><a href="'. $edit_path .'?action=approve">APPROVE</a> | <a href="'. $edit_path .'?action=deny">DENY</a></p>';
+  
+  // Parameters passed to Drupal Mail Function
+  $params['message'] = $body;
+  $admin_user = \Drupal\user\Entity\User::load(1);
+  $to = $admin_user->mail[0]->value;
+  
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $module = 'cca_gated_resource';
+  $key = 'gated_request';
+  $langcode = \Drupal::currentUser()->getPreferredLangcode();
+  $send = true;
+  $reply = \Drupal::config('system.site')->get('mail');
+
+  $result = $mailManager->mail($module, $key, $to, $langcode, $params, $reply, $send);
+  
+   if ($result['result'] !== true) {
+     \Drupal::messenger()->addError('There was a problem sending your message and it was not sent.');
+   }
+   else {
+     \Drupal::logger('cca_gated_resource')->notice('Admin Email sent: <pre><code>' . print_r($result, TRUE) . '</code></pre>');
+   }
+}
+
+
+/**
+ * Implements hook_mail()
+ */
+function cca_gated_resource_mail($key, &$message, $params) {
+
+ switch ($key) {
+   case 'gated_request':
+     $message['from'] = \Drupal::config('system.site')->get('mail');
+     $message['subject'] = t('Gated Resource Access Request');
+     $message['body'][] = $params['message'];
+     $options = [
+       'langcode' => $message['langcode'],
+     ];
+     break;
+     
+   case 'gated_response':
+     $message['from'] = \Drupal::config('system.site')->get('mail');
+     $message['subject'] = t('Crestone Capital resource access granted');
+     $message['body'][] = $params['message'];
+     $options = [
+       'langcode' => $message['langcode'],
+     ];
+     break;
+ }
+}

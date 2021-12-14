@@ -1,0 +1,26 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.user.field_class_schedule
+  module:
+    - user
+id: user.user.field_class_schedule
+field_name: field_class_schedule
+entity_type: user
+bundle: user
+label: 'Class Schedule'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:uiu_class'
+  handler_settings:
+    target_bundles: null
+    sort:
+      field: timeslot
+      direction: ASC
+    auto_create: false
+field_type: entity_reference

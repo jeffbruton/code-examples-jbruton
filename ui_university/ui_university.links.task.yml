@@ -1,0 +1,26 @@
+# Define the 'local' links for the module
+uiu_class.view:
+  route_name: entity.uiu_class.canonical
+  base_route: entity.uiu_class.canonical
+  title: View
+
+uiu_class.page_edit:
+  route_name: entity.uiu_class.edit_form
+  base_route: entity.uiu_class.canonical
+  title: Edit
+
+uiu_class.delete:
+  route_name:  entity.uiu_class.delete_form
+  base_route:  entity.uiu_class.canonical
+  title: Delete
+  weight: 10
+
+uiu_class.settings_tab:
+  route_name: ui_university.uclass_settings
+  title: Settings
+  base_route: ui_university.uclass_settings
+
+uiu_class.list_tab:
+  route_name: entity.uiu_class.collection
+  base_route: system.admin_content
+  title: Classes

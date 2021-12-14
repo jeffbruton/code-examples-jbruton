@@ -1,0 +1,7 @@
+tibco_nofollow.settings:
+  path: '/admin/config/tibco/tibco_nofollow'
+  defaults:
+    _form: '\Drupal\tibco_nofollow\Form\TibcoNofollowForm'
+    _title: 'TIBCO Nofollow: Configuration'
+  requirements:
+    _permission: 'administer tibco nofollow settings'

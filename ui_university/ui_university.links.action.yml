@@ -1,0 +1,6 @@
+# All action links for this module
+uiu_class_action_add:
+  route_name: entity.uiu_class.add_form
+  title: 'Add Class'
+  appears_on:
+    - entity.uiu_class.collection

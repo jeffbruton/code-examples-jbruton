@@ -1,0 +1,5 @@
+section-order:
+  version: 1.x
+  css:
+    theme:
+      css/section-order.css: {}

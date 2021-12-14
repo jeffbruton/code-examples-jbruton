@@ -1,0 +1,54 @@
+<?php
+
+/**
+ * @file
+ * Contains tibco_nofollow.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function tibco_nofollow_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the tibco_nofollow module.
+    case 'help.page.tibco_nofollow':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Adds configuration options to add "rel=nofollow" attribute to anchor tags.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+function tibco_nofollow_preprocess_field(array &$variables) {
+  if ($variables['field_type'] == 'link') {
+    $config = \Drupal::config('tibco_nofollow.settings');
+    $match = null;
+
+    if ($hosts = $config->get('hosts')) {
+      $hosts = preg_split('/\s+/', $hosts);
+      $url = parse_url($variables['element']['#items']->getValue()[0]['uri']);
+
+      // Check if the host is in the list of whitelisted hosts set at admin/config/tibco/tibco_nofollow
+      if (isset($url['host'])) {
+        $match = array_filter($hosts, function($host) use ($url) {
+          $hosturl = $url['host'];
+          return preg_match("#^$hosturl$#", $host);
+        });
+      }
+
+      // If the host url is set, and it is not in the whitelist, set the nofollow rel
+      if (isset($url['host']) && empty($match)) {
+        $link = $variables['items'][0]['content']['#url'];
+        $options = $link->getOptions();
+
+        if (!array_key_exists('nofollow_disabled', $options) || $options['nofollow_disabled'] == 0) {
+          $link->setOption('attributes', ['rel' => 'nofollow']);
+        }
+      }
+    }
+  }
+}

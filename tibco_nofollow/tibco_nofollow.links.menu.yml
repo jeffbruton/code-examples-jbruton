@@ -1,0 +1,5 @@
+tibco_nofollow.settings:
+  title: 'TIBCO Nofollow'
+  parent: tibco_admin.admin_config_tibco
+  description: 'TIBCO Nofollow settings.'
+  route_name: tibco_nofollow.settings

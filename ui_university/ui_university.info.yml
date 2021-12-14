@@ -1,0 +1,8 @@
+name: UI University
+type: module
+description: Provides entities, fields, forms, etc. needed to create/edit Student schedules. 
+package: Urban Insight
+core_version_requirement: ^8 || ^9
+dependencies:
+  - block
+  - taxonomy

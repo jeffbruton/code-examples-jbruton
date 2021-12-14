@@ -1,0 +1,22 @@
+services:
+  tibco_general.event_subscriber:
+    class: Drupal\tibco_general\EventSubscriber\httpHeaderSubscriber
+    tags:
+      - {name: event_subscriber}
+
+  tibco_general.query_param_redirect:
+    class: Drupal\tibco_general\EventSubscriber\queryParamRedirect
+    tags:
+      - {name: event_subscriber}
+
+  tibco_general.route_subscriber:
+    class: Drupal\tibco_general\Routing\TibcoGeneralAutocompleteRouteSubscriber
+    tags:
+      - { name: event_subscriber }
+
+  tibco_general.autocomplete_matcher:
+    class: Drupal\tibco_general\TibcoGeneralAutocompleteMatcher
+    arguments: ['@plugin.manager.entity_reference_selection']
+
+  tibco_general.section_manager:
+    class: Drupal\tibco_general\SectionManager

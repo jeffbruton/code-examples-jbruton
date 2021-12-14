@@ -1,0 +1,12 @@
+# Define the menu links for this module
+entity.uiu_class.collection:
+  title: 'Classes'
+  route_name: entity.uiu_class.collection
+  description: 'List Classes'
+  parent: system.admin_content
+  
+entity.uiu_class.admin.structure.settings:
+  title: 'Class settings'
+  description: 'Configure Class entity'
+  route_name:  ui_university.uclass_settings
+  parent: system.admin_structure

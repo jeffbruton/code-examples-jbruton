@@ -1,0 +1,105 @@
+<?php
+
+use Drupal\Core\Database\Database;
+use Drupal\node\Entity\Node;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\Core\Utility\UpdateException;
+
+/*
+ * Impliments hook_update_N
+ * Delete paragraph content of type "Simple - Callout" so that bundle can be deleted
+ */
+function tibco_general_update_8004(&$sandbox) {
+
+  $paragraphTypes = array('simple_callout');
+
+  foreach ($paragraphTypes as $paragraphType) {
+    $paragraphs = \Drupal::entityTypeManager()->getStorage('paragraph')->loadByProperties(array('type' => $paragraphType));
+    foreach ($paragraphs as $paragraph) {
+      $paragraph->delete();
+    }
+  }
+
+}
+
+function tibco_general_update_8003(&$sandbox) {
+
+    // Confirm existence of field_product_title_clean on the Product bundle before proceeding
+    $info = FieldConfig::loadByName('node', 'product', 'field_product_title_clean');
+    if (empty($info)) {
+        throw new UpdateException('Target computed field (field_product_title_clean) not found on Product bundle.');
+    }
+
+    if (!isset($sandbox['progress'])) {
+        $sandbox['progress'] = 0;
+        $sandbox['current_pk'] = 0;
+        $sandbox['max'] = Database::getConnection()->query('SELECT COUNT(nid) FROM {node} WHERE type LIKE :type',
+                array(':type' => 'product'))
+                ->fetchField() - 1;
+        $sandbox['messages'] = array();
+    }
+
+    if ($sandbox['max'] > 0) {
+
+        // At least one Product node was found
+        // Process Product nodes in batches of 10
+        $product_nodes = Database::getConnection()->select('node', 'n')
+            ->fields('n', array('nid'))
+            ->condition('n.nid', $sandbox['current_pk'], '>')
+            ->condition('n.type', 'product')
+            ->range(0, 2)
+            ->orderBy('n.nid', 'ASC')
+            ->execute();
+
+        foreach ($product_nodes as $product_node) {
+
+            // Load each product node
+            $cur_node = Node::load($product_node->nid);
+
+            // Retrieve the target field's label for later messaging
+            $field_label = $cur_node->field_product_title_clean->getFieldDefinition()->getLabel();
+
+            // Set field_product_title_clean to an empty value to force recomputation
+            $cur_node->field_product_title_clean->setValue('');
+            $cur_node->save();
+            $sandbox['messages'][] = t('Product node @nid processed successfully.', array('@nid' => $product_node->nid));
+
+            $sandbox['progress']++;
+            $sandbox['current_pk'] = $product_node->nid;
+        }
+
+        $sandbox['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+        // Return completion message
+        $completion_report = '<ul><li>' . implode('</li><li>', $sandbox['messages']) . '</li></ul>';
+        return t('Recomputed "@field_label" field for all Product nodes:', array('@field_label' => $field_label)) . $completion_report;
+    }
+
+    else {
+        // Return completion message if no products were found
+        return t('No products found');
+    }
+}
+
+/**
+ * Updates related solutions, changing the outdated solutions
+ */
+function tibco_general_update_8109(&$sandbox) {
+  // Find all Nodes that are have one of the old solutions.
+  $db_connection = Database::getConnection();
+
+  $select = $db_connection->select('node__field_solutions', 'fs')
+    ->fields('fs', ['entity_id']);
+  // Industry 4.0 == 10466 Manufacturing Intelligence == 46166.
+  $select->condition('field_solutions_target_id', [10466, 46166], 'IN');
+  $data = $select->execute();
+  $results = $data->fetchAllKeyed(0, 0);
+
+  // Load all of these nodes and set the field_solutions field to the new node id.
+  $nodes = Node::loadMultiple($results);
+  foreach ($nodes as $node) {
+    /** @var Node $node */
+    $node->set('field_solutions', 19316);
+    $node->save();
+  }
+}

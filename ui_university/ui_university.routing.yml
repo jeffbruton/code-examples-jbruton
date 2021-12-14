@@ -1,0 +1,15 @@
+ui_university.uclass_settings:
+  path: '/admin/structure/class_settings'
+  defaults:
+    _form: '\Drupal\ui_university\Form\UclassSettingsForm'
+    _title: 'Class Settings'
+  requirements:
+    _permission: 'administer uiu_class entity'
+    
+ui_university.uclass_registration_form:
+  path: '/classes/registration'
+  defaults:
+    _form: 'Drupal\ui_university\Form\UclassRegistrationForm'
+    _title: 'Class Registration'
+  requirements:
+    _permission: 'access content'

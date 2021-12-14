@@ -1,0 +1,136 @@
+<?php
+
+use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\ReplaceCommand;
+
+/**
+ * @file
+ * Contains ui_university.module.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function ui_university_theme($existing, $type, $theme, $path) {
+  return [
+    'uclass_registration_form' => [
+      'render element' => 'form',
+    ],
+  ];
+}
+
+/**
+ * Subject Dropdown Values
+ */
+function getSubjectOptions() {
+  $subjectoptions = [];
+  
+  $subjectterms = \Drupal::service('entity_type.manager')->getStorage("taxonomy_term")->loadTree('courses', $parent = 0, $max_depth = 1, $load_entities = FALSE);
+  foreach($subjectterms as $subjectoption){
+    $subjectoptions[$subjectoption->tid] = t($subjectoption->name);
+  }
+  
+  return $subjectoptions;
+}
+
+/**
+ * Topic Dropdown Values
+ */
+function getTopicOptions($subjectID = null) {
+  $topicoptions = [];
+  if (!$subjectID){
+    $topicoptions['_none'] = t('Choose a Subject');
+  } else {
+    $topicterms = \Drupal::service('entity_type.manager')->getStorage("taxonomy_term")->loadTree('courses', $parent = $subjectID, $max_depth = 1, $load_entities = FALSE);
+    foreach($topicterms as $topicoption){
+      $topicoptions[$topicoption->tid] = t($topicoption->name);
+    }
+  }
+  
+  return $topicoptions;
+}
+
+/**
+ * TimeSlot Dropdown Values
+ */
+function getTimeslotOptions($topicID = null) {
+  if (!$topicID){
+    $classoptions['_none'] = t('Choose a Subject');
+  } else {
+    $con = \Drupal\Core\Database\Database::getConnection();
+    $query = $con->select('uiu_class', 'c');
+    $query->leftJoin('uiu_class__field_course', 's', 's.entity_id = c.id');
+    $query->fields('c', array('id', 'name', 'timeslot', 'status'));
+    $query->fields('s', array('entity_id', 'field_course_target_id'));
+    $query->condition('c.status', 1, '=');
+    $query->condition('s.field_course_target_id', $topicID, '=');
+    $result = $query->distinct()->execute();
+
+    foreach($result as $row) {
+      $classoptions[$row->id] = t($row->name);
+    }
+  }
+  
+  return $classoptions;
+}
+
+
+function topicCallback(array &$form, FormStateInterface $form_state) {
+  return $form; 
+}
+
+function uclassCallback(array &$form, FormStateInterface $form_state) {
+  return $form; 
+}
+
+/**
+ * Implements hook_form_form_id_alter().
+ */
+function ui_university_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if ($form_id == 'uiu-class-add-form') {
+    
+    // ToDo
+    // configure Timeslot values to default Year,Month,Day to Jan 1 1970
+    // then hide the YMD form inputs so only Hour, Minute, AM/PM are 
+    // only visible elements and need values set
+    
+  }
+  
+  if ($form_id == 'uclass_registration_form') {
+    $form['username']['#id'] = 'edit-username';
+    $form['usermail']['#id'] = 'edit-usermail';
+    $form['userid']['#id'] = 'edit-userid';
+    
+    $form['subject']['#id'] = 'edit-subject';
+    $form['subject']['#ajax'] = [
+      'callback' => 'topicCallback', 
+      'wrapper' => 'uclass-registration-form-wrapper',
+    ];
+
+    $form['topic']['#id'] = 'edit-topic';
+    $form['topic']['#prefix'] = '<div id="edit-topic-wrapper">';
+    $form['topic']['#suffix'] = '</div>';
+    $form['topic']['#ajax'] = [
+      'callback' => 'uclassCallback', 
+      'wrapper' => 'uclass-registration-form-wrapper',
+    ];
+
+    $form['uclass']['#id'] = 'edit-uclass';
+    $form['uclass']['#prefix'] = '<div id="edit-uclass-wrapper">';
+    $form['uclass']['#suffix'] = '</div>';
+
+    if(!empty($form_state->getValue('subject'))) {
+      $form['topic']['#options'] = getTopicOptions($form_state->getValue('subject'));
+    } else {
+      $form['topic']['#options'] = getTopicOptions();
+    }
+
+    if(!empty($form_state->getValue('topic')) && $form_state->getValue('topic') != '_none') {
+      $form['uclass']['#options'] = getTimeslotOptions($form_state->getValue('topic'));
+    } else {
+      $form['uclass']['#options'] = getTimeslotOptions();
+    }
+  }
+}

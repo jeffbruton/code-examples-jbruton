@@ -1,0 +1,10 @@
+# UI University Libraries.
+courseclass:
+  css:
+    base:
+      css/course-class.css: {}
+
+registration_form:
+  css:
+    base:
+      css/registration.css: {}

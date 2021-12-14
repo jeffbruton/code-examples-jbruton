@@ -1,0 +1,5 @@
+name: CCA Gated Reource
+type: module
+description: Provides functionality for gating resources.
+package: CCA
+core_version_requirement: ^9

@@ -1,0 +1,19 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - ui_university
+    - user
+id: user.field_class_schedule
+field_name: field_class_schedule
+entity_type: user
+type: entity_reference
+settings:
+  target_type: uiu_class
+module: core
+locked: false
+cardinality: -1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

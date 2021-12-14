@@ -1,0 +1,600 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\NodeInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Drupal\Core\Url;
+
+
+/**
+ * Solution add form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_solution_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+
+/**
+ * Solution edit form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_solution_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product add form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_product_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product edit form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_product_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product Components add form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_product_component_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product Components edit form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_product_component_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product Category add form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_category_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Product Category edit form
+ * Implements hook_form_FORM_ID_alter
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function tibco_general_form_node_category_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  _tibco_general_format_section_ordering_field($form, $form_state, $form_id);
+}
+
+/**
+ * Helper function to format section ordering field
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function _tibco_general_format_section_ordering_field(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+
+  // Add css to hide the left side of the ordered_list widget
+  $form['#attached']['library'][] = 'tibco_general/section-order';
+
+  // If we have an empty value use our default order
+  // default value for the field doesn't work for sections made before the field.
+  if(
+    isset($form['field_section_order']['widget']['list']['#default_value'])
+    && !count($form['field_section_order']['widget']['list']['#default_value'])
+  ){
+
+    // Get node bundle
+    $nodeBundle = $form_state->getFormObject()->getEntity()->getType();
+    // Get default values for field on this bundle
+    $solutionFieldDefinitions = \Drupal::service('entity_field.manager')->getFieldDefinitions('node', $nodeBundle);
+
+    // If we can get the field definition
+    if (isset($solutionFieldDefinitions['field_section_order'])) {
+      // Get the default value
+      $defaultFieldValue = $solutionFieldDefinitions['field_section_order']->getDefaultValueLiteral();
+      // Format like a form field default value
+      $formattedDefaultValue = [];
+      foreach($defaultFieldValue as $valueIndex => $protoValue) {
+        $formattedDefaultValue[] = $protoValue['value'];
+      }
+      // Set the default value
+      $form['field_section_order']['widget']['list']['#default_value'] = $formattedDefaultValue;
+    }
+
+  }
+
+}
+
+
+/**
+ * Implements hook_path_insert().
+ * @param $path
+ *
+ * This hook runs after a new alias is inserted. It checks to make sure there
+ * were not duplicates of the new alias where "duplicate" is defined as
+ * having equivalent, "source," "alias," and "langcode" fields and keeps
+ * the entry with the highest PID (should always be the one that was just inserted).
+ */
+
+function tibco_general_path_alias_insert(Drupal\path_alias\PathAliasInterface $path_alias){
+  //check for any duplicates of the same alias and the same language
+  $alias = $path_alias->getAlias();
+  $langcode = $path_alias->language()->getId();
+  $duplicates = \Drupal::entityTypeManager()->getStorage('path_alias')->loadByProperties(['alias' => $alias, 'langcode' => $langcode]);
+  if(!empty($duplicates)){
+    //if there are more than one duplicate delete the older one(s)
+    if(count($duplicates) > 1){
+      $ids = array();
+      foreach($duplicates as $duplicate){
+        $ids[$duplicate->id()] = $duplicate;
+      }
+      krsort($ids);
+      foreach($ids as $key => $value){
+        if($key != $path_alias->id()){
+          $value->delete();
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_update_n.
+ * Removes all existing duplicates in the url_alias table
+ * Takes about 30s -> 1m to execute
+ */
+function tibco_general_update_8031(&$sandbox){
+  /*
+  DELETE pid1
+  FROM url_alias_test pid1, url_alias_test pid2
+  WHERE pid1.pid < pid2.pid
+  AND pid1.source = pid2.source
+  AND pid1.alias = pid2.alias
+  AND pid1.langcode = pid2.langcode;
+  */
+  $connection = \Drupal::database();
+  $connection->query("DELETE pid1 FROM {url_alias} pid1, {url_alias} pid2 WHERE pid1.pid < pid2.pid AND pid1.source = pid2.source AND pid1.alias = pid2.alias AND pid1.langcode = pid2.langcode");
+}
+
+/**
+ * Implements hook_simple_sitemap_links_alter().
+ * @param $links
+ */
+function tibco_general_simple_sitemap_links_alter(&$links)
+{
+  // Establish patterns that disqualify a URL from inclusion in the main sitemap
+  $disallowed_patterns = [
+    '/fr/node/',
+    '/es/node/',
+    '/de/node/',
+    '/it/node/',
+  ];
+
+  // Loop through disallowed patterns and link URLs, and remove links as appropriate
+  foreach ($disallowed_patterns as $pattern) {
+    foreach ($links as $key => $link) {
+      if (stripos($link['url'], $pattern) !== FALSE) {
+        unset($links[$key]);
+      }
+    }
+  }
+}
+
+
+
+/**
+ * Implements hook_views_pre_render().
+ * @param \Drupal\views\ViewExecutable $view
+ *
+ * For the 'certifications' View, hide results if exposed filters don't have values.
+ */
+function tibco_general_views_pre_render(\Drupal\views\ViewExecutable $view) {
+
+  if ($view->id() == 'certifications' && $view->current_display !== 'internal') {
+
+    $hide_results = FALSE;
+    $exposed_filter_values = $view->getExposedInput();
+
+    // Require (first name AND last name) OR email
+    if ( ((empty($exposed_filter_values['field_cert_last_name_value'])) || (empty($exposed_filter_values['field_cert_first_name_value']))) && (empty($exposed_filter_values['field_cert_email_address_value'])) ) {
+      $hide_results = TRUE;
+    }
+
+    if ($hide_results) {
+      $i = 0;
+      foreach ($view->result as $value) {
+        unset($view->result[$i]);
+        $i++;
+      }
+    }
+  }
+}
+
+
+/**
+ * Implements hook_field_widget_WIDGET_TYPE_form_alter
+ * set limit of 2MB to all image uploads unless user is an admin
+ * @param $element
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $context
+ */
+function tibco_general_field_widget_image_image_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
+
+  $currentUserId = \Drupal::currentUser()->id();
+  $currentUser = \Drupal\user\Entity\User::load($currentUserId);
+  if(
+    !$currentUser->hasRole('administrator')
+    && $currentUserId != 1
+  ){
+    $element['#upload_validators']['file_validate_size'] = [2097152];
+    $element['#description'] = preg_replace('/([0-9]* MB limit\.)/', '2 MB limit.', $element['#description']);
+  }
+
+}
+
+/**
+ * Implements hook_field_widget_WIDGET_TYPE_form_alter
+ * set limit of 2MB to all image uploads unless user is an admin
+ * @param $element
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $context
+ */
+function tibco_general_field_widget_file_generic_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
+
+  // Determine if this file field can contain images
+  $allowedExtensions = explode(' ',$element['#upload_validators']['file_validate_extensions'][0]);
+  $imageExtensions = ['jpg', 'gif', 'png', 'bmp', 'svg'];
+  $fieldAllowsImages = count(array_intersect($imageExtensions,$allowedExtensions));
+
+  $currentUserId = \Drupal::currentUser()->id();
+  $currentUser = \Drupal\user\Entity\User::load($currentUserId);
+  if(
+    $fieldAllowsImages
+    && !$currentUser->hasRole('administrator')
+    && $currentUserId != 1
+  ){
+    $element['#upload_validators']['file_validate_size'] = [2097152];
+    $element['#description'] = preg_replace('/([0-9]* MB limit\.)/', '2 MB limit.', $element['#description']);
+  }
+
+}
+
+
+/**
+ * Given a valid path, this function returns that path's page title.
+ * @param $base_path
+ * @return mixed
+ */
+function tibco_general_get_title($path){
+  try
+  {
+    $req = Symfony\Component\HttpFoundation\Request::create($path);
+    $req->attributes->add(\Drupal::service('router')->matchRequest($req));  //this can cause "route not found" exception
+    $base_route_match = Drupal\Core\Routing\RouteMatch::createFromRequest($req);
+    $title = \Drupal::service('title_resolver')->getTitle($req, $base_route_match->getRouteObject());
+    return $title;
+  }
+  catch(Exception $e)
+  {
+    //See WWW-1660
+    if ($e instanceof Drupal\Core\Http\Exception\CacheableAccessDeniedHttpException) {
+      $message = 'A paragraph on the page is referencing unpublished content. The unpublished node is here: '.$path;
+      watchdog_exception('tibco_general', $e, $message, [], 4);
+      //See WEB-6282
+    }
+    elseif ($e instanceof Drupal\Core\ParamConverter\ParamNotConvertedException) {
+      $message = 'A Link field is linking to an unpublished node. The unpublished node is here: '.$path;
+      watchdog_exception('tibco_general', $e, $message, [], \Drupal\Core\Logger\RfcLogLevel::NOTICE);
+    }
+    else {
+      watchdog_exception('tibco_general', $e);
+    }
+  }
+  return '';
+}
+
+
+/**
+ * Implements hook_update_n
+ * Created to iterate resource assets and change any references to the old data science product page and replace with the new one
+ */
+function tibco_general_update_8106(&$sandbox)
+{
+  $query = \Drupal::entityTypeManager()->getStorage('node');
+  $query_result = $query->getQuery()
+    ->condition('type', 'resource_asset')
+    ->execute();
+  foreach ($query_result as $key => $nid) {
+    $node = \Drupal\node\Entity\Node::load($nid);
+    if ($node instanceof \Drupal\node\Entity\Node) {
+      foreach ($node->getFields() as $name => $field) {
+        if (strpos($name, 'field') !== FALSE && strpos($field->getFieldDefinition()->getType(), 'entity_reference') !== FALSE) {
+          if(method_exists($field, 'getValue')) {
+            $field_value = $field->getValue();
+            if (!empty($field_value)) {
+              foreach ($field_value as $idx => $array) {
+                $referenced_nid = $array['target_id'];
+                if ($referenced_nid == 23756) {
+                  $node->get($name)->removeItem($idx);
+                  $node->get($name)->appendItem(['target_id' => 145496]);
+                  $node->save();
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter
+ * Make options for reference fields in report view
+ */
+function tibco_general_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+
+  // If not the view we are looking, move on
+  if ($form['#id'] != 'views-exposed-form-content-campaign-listing-page-2') {
+    return FALSE;
+  }
+
+  /**
+   * Related Products Filter
+   */
+  // Query for published Product nodes
+  $storage = Drupal::getContainer()->get('entity_type.manager')->getStorage('node');
+  $nids = $storage->getQuery();
+  $nids = $nids->condition('type', 'product')
+    ->condition('status', 1)
+    ->sort('title')
+    ->execute();
+
+  // If there are no nodes, move on
+  if (!$nids) {
+    return FALSE;
+  }
+
+  // Start building out the options for our select list
+  $options = ['' => '- All -'];
+  $nodes = $storage->loadMultiple($nids);
+
+  // Push titles into select list
+  foreach ($nodes as $node) {
+    $options[$node->id()] = $node->getTitle();
+  }
+
+  // Edits to the form element
+  $form['field_products_target_id']['#type'] = 'select';
+  $form['field_products_target_id']['#multiple'] = FALSE;
+  $form['field_products_target_id']['#options'] = $options;
+  $form['field_products_target_id']['#validated'] = TRUE;
+  unset($form['field_products_target_id']['#size']);
+
+  /**
+   * Related Solutions Filter
+   */
+  // Query for published Product nodes
+  $storage = Drupal::getContainer()->get('entity_type.manager')->getStorage('node');
+  $nids = $storage->getQuery();
+  $nids = $nids->condition('type', 'solution')
+    ->condition('status', 1)
+    ->sort('title')
+    ->execute();
+
+  // If there are no nodes, move on
+  if (!$nids) {
+    return FALSE;
+  }
+
+  // Start building out the options for our select list
+  $options = ['' => '- All -'];
+  $nodes = $storage->loadMultiple($nids);
+
+  // Push titles into select list
+  foreach ($nodes as $node) {
+    $options[$node->id()] = $node->getTitle();
+  }
+
+  // Edits to the form element
+  $form['field_solutions_target_id']['#type'] = 'select';
+  $form['field_solutions_target_id']['#multiple'] = FALSE;
+  $form['field_solutions_target_id']['#options'] = $options;
+  $form['field_solutions_target_id']['#validated'] = TRUE;
+  unset($form['field_solutions_target_id']['#size']);
+
+}
+
+/**
+ * Fills the product_name_replace queue with nids that need to be checked for
+ * replacing TIBCO ActiveMatrix BPM with TIBCO BPM Enterprise. The queue will
+ * need to be batch processed after
+ */
+function tibco_general_update_8107(){
+  $query = \Drupal::entityQuery('node')
+    ->condition('status','1', '=');
+  $results = $query->execute();
+  $queue = \Drupal::queue('product_name_replace');
+  foreach($results as $id){
+    $queue->createItem($id);
+  }
+}
+
+
+/*
+function tibco_general_update_8108() {
+// Marketo Consolidation, May 2021: This function copied to
+// tibco_contact_forms_update_8108() in tibco_contact_forms/tibco_contact_forms.install
+}
+*/
+
+
+/**
+ * Implements hook_page_attachments_alter
+ * Send assorted field values to GTM via dataLayer
+ */
+function tibco_general_page_attachments_alter(array &$attachments) {
+  $node = \Drupal::routeMatch()->getParameter('node');
+  if ($node instanceof NodeInterface) {
+    try {
+      $bundle = $node->bundle();
+
+      // Set initial values for dataLayer array
+      $dl_dataset = [
+        'pageTitle' => $node->getUntranslated()->label(),
+        'pagePostDate' => date('F j, Y', $node->getCreatedTime()),
+        'pageLanguage' => $node->get('langcode')->value,
+        'resourceLanguage' => '',
+        'resourceType' => '',
+        'relatedProducts' => '',
+        'relatedCategories' => '',
+        'relatedSolutions' => '',
+      ];
+
+      switch ($bundle) {
+
+        case 'advanced_page':
+        case 'article':
+        case 'category':
+        case 'interactive_demo':
+        case 'page':
+        case 'product_component':
+          $dl_dataset['relatedProducts'] = _get_entity_ref_titles($node, 'field_related_products');
+          $dl_dataset['relatedCategories'] = _get_entity_ref_titles($node, 'field_related_categories');
+          $dl_dataset['relatedSolutions'] = _get_entity_ref_titles($node, 'field_related_solutions');
+          break;
+
+        case 'customer':
+        case 'event_series':
+          $dl_dataset['relatedProducts'] = _get_entity_ref_titles($node, 'field_products');
+          $dl_dataset['relatedCategories'] = _get_entity_ref_titles($node, 'field_related_categories');
+          $dl_dataset['relatedSolutions'] = _get_entity_ref_titles($node, 'field_solutions');
+          break;
+
+        case 'product':
+          $dl_dataset['relatedCategories'] = _get_entity_ref_titles($node, 'field_related_categories');
+          $dl_dataset['relatedSolutions'] = _get_entity_ref_titles($node, 'field_solutions');
+          break;
+
+        case 'resource_asset':
+          // Get resource asset delivery language
+          if (!$node->field_delivery_language->isEmpty()) {
+            $dl_dataset['resourceLanguage'] = $node->field_delivery_language->getValue()[0]['value'];
+          }
+          else {
+            $dl_dataset['resourceLanguage'] = 'English';
+          }
+          // Get resource asset type
+          if ($node->field_resource_asset_type->getValue()) {
+            $type = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($node->field_resource_asset_type->getValue()[0]['target_id']);
+            $dl_dataset['resourceType'] = $type->name->value;
+          }
+
+          $dl_dataset['relatedProducts'] = _get_entity_ref_titles($node, 'field_products');
+          $dl_dataset['relatedCategories'] = _get_entity_ref_titles($node, 'field_related_categories');
+          $dl_dataset['relatedSolutions'] = _get_entity_ref_titles($node, 'field_solutions');
+          break;
+
+        case 'solution':
+          $dl_dataset['relatedProducts'] = _get_entity_ref_titles($node, 'field_related_product');
+          $dl_dataset['relatedCategories'] = _get_entity_ref_titles($node, 'field_related_categories');
+          break;
+      }
+
+      $attachment = [
+        [
+          '#type' => 'html_tag',
+          '#tag' => 'script',
+          '#value' =>
+            'dataLayer = [{' .
+            '"pageTitle":"' . $dl_dataset['pageTitle'] . '", ' .
+            '"pagePostDate":"' . $dl_dataset['pagePostDate'] . '", ' .
+            '"pageLanguage":"' . $dl_dataset['pageLanguage'] . '", ' .
+            '"resourceLanguage":"'. $dl_dataset['resourceLanguage'] . '", ' .
+            '"resourceType":"' . $dl_dataset['resourceType'] . '", ' .
+            '"relatedProducts":[' . $dl_dataset['relatedProducts'] . '], ' .
+            '"relatedCategories":[' . $dl_dataset['relatedCategories'] . '], ' .
+            '"relatedSolutions":[' . $dl_dataset['relatedSolutions'] . ']}]',
+        ],
+        'tibco_resource_assets__gtm_variable', // A key, to make it possible to recognize this HTML element when altering.
+      ];
+      array_unshift($attachments['#attached']['html_head'], $attachment);
+    }
+    catch(Exception $e) {
+      watchdog_exception('tibco_general', $e);
+      return;
+    }
+  }
+}
+
+
+/**
+ * Get titles of referenced entities
+ *
+ * @param $node
+ * @param $ref_field
+ * @return mixed|string
+ */
+function _get_entity_ref_titles($node, $ref_field) {
+  if ((!$node->hasField($ref_field)) || ($node->$ref_field->isEmpty())) {
+    return '';
+  }
+  else {
+    $referenced_entities = $node->$ref_field->referencedEntities();
+    $tmp = [];
+    foreach ($referenced_entities as $referenced_entity) {
+      $tmp[] = "\"{$referenced_entity->getTitle()}\"";
+    }
+    if (empty($tmp)) {
+      return '';
+    }
+    elseif (count($tmp) == 1) {
+      return $tmp[0];
+    }
+    else {
+      return implode(',', $tmp);
+    }
+  }
+}
