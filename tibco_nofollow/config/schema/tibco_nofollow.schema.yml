@@ -1,7 +1,0 @@
-field.widget.settings.tibco_nofollow_link:
-  type: mapping
-  label: tibco_nofollow_link widget settings
-  mapping:
-    nofollow_disabled:
-      type: boolean
-      label: Disabled
